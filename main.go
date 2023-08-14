@@ -178,3 +178,39 @@ func deleteCustomer(customer entity.Customer) {
 		fmt.Println("Successfully Delete Data!")
 	}
 }
+
+// add order
+func addOrder(order entity.Orders) {
+	db := connectDb()
+	defer db.Close()
+	var err error
+
+	fmt.Println("=== TAMBAH PESANAN ====")
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Masukkan ID Order : ")
+	order.OrderId, _ = reader.ReadString('\n')
+  order.OrderId,  = strings.TrimSpace(order.OrderId)
+  
+	fmt.Print("Masukkan Customer ID : ")
+	order.OrderId, _ = reader.ReadString('\n')
+	order.OrderId,  = strings.TrimSpace(order.CustomerId)
+  
+	fmt.Print("Masukkan Nama  : ")
+	order.OrderId, _ = reader.ReadString('\n')
+	order.OrderId,  = strings.TrimSpace(order.CustomerName)
+  
+	fmt.Print("Silahkan Pilih Paket : ")
+	order.OrderId, _ = reader.ReadString('\n')
+	order.OrderId,  = strings.TrimSpace(order.Service)
+  
+
+	sqlStatement := "INSERT INTO orders (order_id, cust_id, cust_name, service_name, unit, total_cost, outlet_name, order_date, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);"
+
+	_, err = db.Exec(sqlStatement, order.OrderId, order.CustomerId, order.CustomerName, order.Service, order.Unit, order.TotalCost, order.OutletName, order.OrderDate, order.Status)
+	if err != nil {
+		panic(err)
+	} else {
+		fmt.Println("Succesfully Insert Order!")
+	}
+
+}
