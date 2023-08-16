@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"crypto/rand"
 	"database/sql"
 	"enigma-laundry/entity"
 	"fmt"
@@ -61,8 +62,8 @@ func main() {
 			updateCustomer(entity.Customer{})
 		case "3":
 			deleteCustomer(entity.Customer{})
-		// case "4":
-		// 	addOrder()
+		case "4":
+			addOrder()
 		// case "5":
 		// 	updateOrder()
 		// case "6":
@@ -89,9 +90,7 @@ func addCustomer(customer entity.Customer) {
 	fmt.Println("=== PENDAFTARAN CUSTOMER ===")
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Print("Masukkan Id : ")
-	customer.Id, _ = reader.ReadString('\n')
-	customer.Id = strings.TrimSpace(customer.Id)
+	customerId = fmt.Sprintf("CS%d%", rand.Intn(1000))
 
 	fmt.Print("Masukkan Nama : ")
 	customer.Name, _ = reader.ReadString('\n')
@@ -127,7 +126,7 @@ func updateCustomer(customer entity.Customer) {
 	fmt.Println("=== UBAH DATA CUSTOMER ===")
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Print("Masukkan Id : ")
+	fmt.Print("Masukkan ID Customer : ")
 	customer.Id, _ = reader.ReadString('\n')
 	customer.Id = strings.TrimSpace(customer.Id)
 
@@ -192,6 +191,48 @@ func addOrder(order entity.Orders) {
   order.OrderId,  = strings.TrimSpace(order.OrderId)
   
 	fmt.Print("Masukkan Customer ID : ")
+	order.CustomerId, _ = reader.ReadString('\n')
+	order.CustomerId,  = strings.TrimSpace(order.CustomerId)
+  
+	fmt.Print("Masukkan Nama  : ")
+	order.CustomerName, _ = reader.ReadString('\n')
+	order.CustomerName,  = strings.TrimSpace(order.CustomerName)
+  
+	fmt.Print("Silahkan Pilih Paket : ")
+	order.Service, _ = reader.ReadString('\n')
+	order.Service,  = strings.TrimSpace(order.Service)
+
+  fmt.println("Berapa kg yang anda pesan ?")
+  order.Unit, _ = reader.ReadString('\n')
+  oder.Unit, = sstrings.TrimSpace(order.Unit)
+
+  
+
+	sqlStatement := "INSERT INTO orders (order_id, cust_id, cust_name, service_name, unit, total_cost, outlet_name, order_date, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);"
+
+	_, err = db.Exec(sqlStatement, order.OrderId, order.CustomerId, order.CustomerName, order.Service, order.Unit, order.TotalCost, order.OutletName, order.OrderDate, order.Status)
+	if err != nil {
+		panic(err)
+	} else {
+		fmt.Println("Succesfully Insert Order!")
+	}
+
+}
+
+// update order
+
+func updateOrder(order entity.Orders) {
+  db := connectDb()
+  defer db.Close()
+  var err error 
+
+  fmt.Println("=== UPDATE PESANAN ====")
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Masukkan ID Order : ")
+	order.OrderId, _ = reader.ReadString('\n')
+  order.OrderId,  = strings.TrimSpace(order.OrderId)
+  
+	fmt.Print("Masukkan Customer ID : ")
 	order.OrderId, _ = reader.ReadString('\n')
 	order.OrderId,  = strings.TrimSpace(order.CustomerId)
   
@@ -212,5 +253,5 @@ func addOrder(order entity.Orders) {
 	} else {
 		fmt.Println("Succesfully Insert Order!")
 	}
-
+  
 }
