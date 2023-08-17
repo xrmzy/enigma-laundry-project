@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"enigma-laundry/entity"
 	"fmt"
+	"math/rand"
 	"os"
 	"strings"
 
@@ -67,8 +68,27 @@ func main() {
 		// 	updateOrder()
 		// case "6":
 		// 	deleteOder()
-		// case "7":
-		// 	searchCustomerBy()
+		case "7":
+		searchMenu:
+			for {
+				fmt.Println("1. Cari berdasarkan ID")
+				fmt.Println("2. Cari semua data")
+				fmt.Println("0. Kembali ke menu utama")
+				fmt.Print("Pilih tindakan (1/2/0) :")
+
+				var searchChoice string
+				fmt.Scanln(&searchChoice)
+				switch searchChoice {
+				case "1":
+					searchBy(entity.Customer{})
+				case "2":
+					searchAll(entity.Customer{})
+				case "0":
+					break searchMenu // balik ke menu utama
+				default:
+					fmt.Println("Pilihan tidak valid.")
+				}
+			}
 		// case "8":
 		// 	searchOrderBy()
 		case "9":
@@ -80,6 +100,23 @@ func main() {
 	}
 }
 
+func generateRandomNumber(max int) int {
+	return rand.Intn(max)
+}
+
+// func generateCustomerId() string {
+// 	codePrefix := "CS"
+// 	randomNumber := generateRandomNumber(1000)
+// 	return fmt.Sprintf("%s%03d", codePrefix, randomNumber)
+// }
+
+// func getInput(prompt string) string {
+// 	reader := bufio.Newreader(os.Stdin)
+// 	fmt.Print(prompt)
+// 	inpit, _ := reader.ReadString('\n')
+// 	return strings.TrimSpace(input)
+// }
+
 // add customer
 func addCustomer(customer entity.Customer) {
 	db := connectDb()
@@ -89,9 +126,10 @@ func addCustomer(customer entity.Customer) {
 	fmt.Println("=== PENDAFTARAN CUSTOMER ===")
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Print("Masukkan Id : ")
-	customer.Id, _ = reader.ReadString('\n')
-	customer.Id = strings.TrimSpace(customer.Id)
+	randomNumber := generateRandomNumber(1000)
+	codePrefix := "CS"
+
+	customer.Id = fmt.Sprintf("%s%03d", codePrefix, randomNumber)
 
 	fmt.Print("Masukkan Nama : ")
 	customer.Name, _ = reader.ReadString('\n')
@@ -108,6 +146,19 @@ func addCustomer(customer entity.Customer) {
 	fmt.Print("Masukkan Email: ")
 	customer.Email, _ = reader.ReadString('\n')
 	customer.Email = strings.TrimSpace(customer.Email)
+
+	//validasi email
+	var emailExists bool
+	row := db.QueryRow("SELECT EXISTS (SELECT 1 FROM customers WHERE email = $1)", customer.Email)
+	err = row.Scan((&emailExists))
+	if err != nil {
+		panic(err)
+	}
+
+	if emailExists {
+		fmt.Println("Email sudah digunakan. Silahkan gunakan email lain!")
+		return
+	}
 
 	sqlStatement := "INSERT INTO customers (cust_id, cust_name, phone_number, address, email) VALUES ($1, $2, $3, $4, $5);"
 	_, err = db.Exec(sqlStatement, customer.Id, customer.Name, customer.PhoneNumber, customer.Address, customer.Email)
@@ -176,5 +227,59 @@ func deleteCustomer(customer entity.Customer) {
 		panic(err)
 	} else {
 		fmt.Println("Successfully Delete Data!")
+	}
+}
+
+// func addOrder() {
+
+// }
+
+// search customer by ID
+func searchBy(customer entity.Customer) {
+	db := connectDb()
+	defer db.Close()
+
+	fmt.Println("=== CARI PELANGGAN BERDASARKAN ID ===")
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Print("Masukkan ID Pelanggan: ")
+	custID, _ := reader.ReadString('\n')
+	custID = strings.TrimSpace(custID)
+
+	sqlStatement := "SELECT cust_id, cust_name, phone_number, address, email FROM customers WHERE cust_id = $1;"
+	row := db.QueryRow(sqlStatement, custID)
+
+	err := row.Scan(&customer.Id, &customer.Name, &customer.PhoneNumber, &customer.Address, &customer.Email)
+	if err == sql.ErrNoRows {
+		fmt.Println("Pelanggan tidak ditemukan.")
+	} else if err != nil {
+		panic(err)
+	} else {
+		fmt.Printf("ID: %s, Nama: %s, Telepon: %s, Alamat: %s, Email: %s\n",
+			customer.Id, customer.Name, customer.PhoneNumber, customer.Address, customer.Email)
+	}
+}
+
+// search all customers
+func searchAll(customer entity.Customer) {
+	db := connectDb()
+	defer db.Close()
+
+	fmt.Println("=== CARI SEMUA PELANGGAN ===")
+
+	rows, err := db.Query("SELECT cust_id, cust_name, phone_number, address, email FROM customers;")
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err := rows.Scan(&customer.Id, &customer.Name, &customer.PhoneNumber, &customer.Address, &customer.Email)
+		if err != nil {
+			fmt.Println("Error scanning row:", err)
+			continue
+		}
+		fmt.Printf("ID: %s, Nama: %s, Telepon: %s, Alamat: %s, Email: %s\n",
+			customer.Id, customer.Name, customer.PhoneNumber, customer.Address, customer.Email)
 	}
 }
