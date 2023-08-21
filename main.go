@@ -123,6 +123,39 @@ func generateRandomNumber(max int) int {
 	return rand.Intn(max)
 }
 
+// Fungsi untuk memvalidasi apakah sebuah email sudah ada dalam tabel customers
+func isEmailExists(db *sql.DB, email string) bool {
+	var exists bool
+	row := db.QueryRow("SELECT EXISTS (SELECT 1 FROM customers WHERE email = $1)", email)
+	err := row.Scan(&exists)
+	if err != nil {
+		panic(err)
+	}
+	return exists
+}
+
+// Fungsi untuk memvalidasi apakah sebuah customer ID sudah ada dalam tabel customers
+func isCustomerExists(db *sql.DB, customerID string) bool {
+	var exists bool
+	row := db.QueryRow("SELECT EXISTS (SELECT 1 FROM customers WHERE cust_id = $1)", customerID)
+	err := row.Scan(&exists)
+	if err != nil {
+		panic(err)
+	}
+	return exists
+}
+
+// Fungsi untuk memvalidasi apakah sebuah order ID sudah ada dalam tabel orders
+func isOrderExists(db *sql.DB, orderID string) bool {
+	var exists bool
+	row := db.QueryRow("SELECT EXISTS (SELECT 1 FROM orders WHERE order_id = $1)", orderID)
+	err := row.Scan(&exists)
+	if err != nil {
+		panic(err)
+	}
+	return exists
+}
+
 // add customer
 func addCustomer(customer entity.Customer) {
 	db := connectDb()
@@ -154,15 +187,8 @@ func addCustomer(customer entity.Customer) {
 	customer.Email = strings.TrimSpace(customer.Email)
 
 	//validasi email
-	var emailExists bool
-	row := db.QueryRow("SELECT EXISTS (SELECT 1 FROM customers WHERE email = $1)", customer.Email)
-	err = row.Scan((&emailExists))
-	if err != nil {
-		panic(err)
-	}
-
-	if emailExists {
-		fmt.Println("Email sudah digunakan. Silahkan gunakan email lain!")
+	if isEmailExists(db, customer.Email) {
+		fmt.Println("Email sudah digunakan. Silakan gunakan email lain!")
 		return
 	}
 
@@ -188,13 +214,9 @@ func updateCustomer(customer entity.Customer) {
 	customer.Id, _ = reader.ReadString('\n')
 	customer.Id = strings.TrimSpace(customer.Id)
 
-	row := db.QueryRow("SELECT cust_name, address, phone_number, email FROM customers WHERE cust_id = $1;", customer.Id)
-	err = row.Scan(&customer.Name, &customer.Address, &customer.PhoneNumber, &customer.Email)
-	if err == sql.ErrNoRows {
+	if !isCustomerExists(db, customer.Id) {
 		fmt.Println("Pelanggan tidak ditemukan!")
 		return
-	} else if err != nil {
-		panic(err)
 	}
 
 	fmt.Print("Masukkan Nama : ")
@@ -234,6 +256,11 @@ func deleteCustomer(customer entity.Customer) {
 	fmt.Print("Masukkan ID Customer : ")
 	customer.Id, _ = reader.ReadString('\n')
 	customer.Id = strings.TrimSpace(customer.Id)
+
+	if !isCustomerExists(db, customer.Id) {
+		fmt.Println("Pelanggan tidak ditemukan!")
+		return
+	}
 
 	sqlStatement := "DELETE FROM customers WHERE cust_id = $1;"
 
@@ -579,6 +606,11 @@ func searchOrderBy(order entity.Orders) {
 	fmt.Print("Masukkan ID Transaksi: ")
 	order.OrderId, _ = reader.ReadString('\n')
 	order.OrderId = strings.TrimSpace(order.OrderId)
+
+	if !isOrderExists(db, order.OrderId) {
+		fmt.Println("Transaksi tidak ditemukan!")
+		return
+	}
 
 	sqlStatement := "SELECT order_id, cust_id, cust_name, service, unit, outlet_name, order_date, status FROM orders WHERE order_id = $1;"
 	row := db.QueryRow(sqlStatement, order.OrderId)
