@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"strings"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -154,14 +155,8 @@ func addCustomer(customer entity.Customer) {
 	customer.Email = strings.TrimSpace(customer.Email)
 
 	//validasi email
-	var emailExists bool
-	row := db.QueryRow("SELECT EXISTS (SELECT 1 FROM customers WHERE email = $1)", customer.Email)
-	err = row.Scan((&emailExists))
-	if err != nil {
-		panic(err)
-	}
 
-	if emailExists {
+	if isEmailExists(db, customer.Email) {
 		fmt.Println("Email sudah digunakan. Silahkan gunakan email lain!")
 		return
 	}
@@ -188,14 +183,19 @@ func updateCustomer(customer entity.Customer) {
 	customer.Id, _ = reader.ReadString('\n')
 	customer.Id = strings.TrimSpace(customer.Id)
 
-	row := db.QueryRow("SELECT cust_name, address, phone_number, email FROM customers WHERE cust_id = $1;", customer.Id)
-	err = row.Scan(&customer.Name, &customer.Address, &customer.PhoneNumber, &customer.Email)
-	if err == sql.ErrNoRows {
+	if !isCustomerExists(db, customer.Id) {
 		fmt.Println("Pelanggan tidak ditemukan!")
 		return
-	} else if err != nil {
-		panic(err)
 	}
+
+	// row := db.QueryRow("SELECT cust_name, address, phone_number, email FROM customers WHERE cust_id = $1;", customer.Id)
+	// err = row.Scan(&customer.Name, &customer.Address, &customer.PhoneNumber, &customer.Email)
+	// if err == sql.ErrNoRows {
+	// 	fmt.Println("Pelanggan tidak ditemukan!")
+	// 	return
+	// } else if err != nil {
+	// 	panic(err)
+	// }
 
 	fmt.Print("Masukkan Nama : ")
 	customer.Name, _ = reader.ReadString('\n')
@@ -234,6 +234,11 @@ func deleteCustomer(customer entity.Customer) {
 	fmt.Print("Masukkan ID Customer : ")
 	customer.Id, _ = reader.ReadString('\n')
 	customer.Id = strings.TrimSpace(customer.Id)
+
+	if !isCustomerExists(db, customer.Id) {
+		fmt.Println("Pelanggan tidak ditemukan!")
+		return
+	}
 
 	sqlStatement := "DELETE FROM customers WHERE cust_id = $1;"
 
@@ -347,10 +352,23 @@ func addOrder(order entity.Orders) {
 
 	// Input Tanggal Order
 	fmt.Print("Masukkan Tanggal Order (YYYY-MM-DD): ")
-	_, err = fmt.Scanf("%s\n", &order.OrderDate)
+
+	var orderDateStr string
+	_, err = fmt.Scanln(&orderDateStr)
 	if err != nil {
 		fmt.Println("Input Tanggal Tidak Valid")
 	}
+
+	// Validasi format tanggal
+	layout := "2006-01-02"
+	parseDate, err := time.Parse(layout, orderDateStr)
+	if err != nil {
+		fmt.Println("Format tanggal tidak valid. Harap Masukkan dengan format yang sudah ditentukan")
+		return
+	}
+
+	// Set order.OrderDate ke hasil parsing yang valid
+	order.OrderDate = parseDate.Format(layout)
 
 	// Pilih Status Order
 	fmt.Println("Pilih Status Order :")
@@ -580,24 +598,31 @@ func searchOrderBy(order entity.Orders) {
 	order.OrderId, _ = reader.ReadString('\n')
 	order.OrderId = strings.TrimSpace(order.OrderId)
 
+	if !isOrderExists(db, order.OrderId) {
+		fmt.Println("Transaksi tidak ditemukan!")
+		return
+	}
+
 	sqlStatement := "SELECT order_id, cust_id, cust_name, service, unit, outlet_name, order_date, status FROM orders WHERE order_id = $1;"
+
 	row := db.QueryRow(sqlStatement, order.OrderId)
 
 	err := row.Scan(&order.OrderId, &order.CustomerId, &order.CustomerName, &order.Service, &order.Unit, &order.OutletName, &order.OrderDate, &order.Status)
+
 	if err == sql.ErrNoRows {
-		fmt.Println("Pelanggan tidak ditemukan.")
+		fmt.Println("Transaksi tidak ditemukan.")
 	} else if err != nil {
 		panic(err)
-	} else {
-		fmt.Println("Order ID :", order.OrderId)
-		fmt.Println("Customer ID :", order.CustomerId)
-		fmt.Println("Nama Customer :", order.CustomerName)
-		fmt.Println("Service :", order.Service)
-		fmt.Println("Unit :", order.Unit)
-		fmt.Println("Outlet :", order.OutletName)
-		fmt.Println("Tanggal Order:", order.OrderDate)
-		fmt.Println("Status :", order.Status)
 	}
+
+	fmt.Println("Order ID :", order.OrderId)
+	fmt.Println("Customer ID :", order.CustomerId)
+	fmt.Println("Nama Customer :", order.CustomerName)
+	fmt.Println("Service :", order.Service)
+	fmt.Println("Unit :", order.Unit)
+	fmt.Println("Outlet :", order.OutletName)
+	fmt.Println("Tanggal Order:", order.OrderDate)
+	fmt.Println("Status :", order.Status)
 }
 
 // search All Orders
@@ -627,6 +652,40 @@ func SearchAllOrders(order entity.Orders) {
 			fmt.Println("Outlet :", order.OutletName)
 			fmt.Println("Tanggal Order:", order.OrderDate)
 			fmt.Println("Status :", order.Status)
+			fmt.Println("============================")
 		}
 	}
+}
+
+// Fungsi untuk memvalidasi apakah sebuah email sudah ada dalam tabel customers
+func isEmailExists(db *sql.DB, email string) bool {
+	var exists bool
+	row := db.QueryRow("SELECT EXISTS (SELECT 1 FROM customers WHERE email = $1)", email)
+	err := row.Scan(&exists)
+	if err != nil {
+		panic(err)
+	}
+	return exists
+}
+
+// Fungsi untuk memvalidasi apakah sebuah customer ID sudah ada dalam tabel customers
+func isCustomerExists(db *sql.DB, customerID string) bool {
+	var exists bool
+	row := db.QueryRow("SELECT EXISTS (SELECT 1 FROM customers WHERE cust_id = $1)", customerID)
+	err := row.Scan(&exists)
+	if err != nil {
+		panic(err)
+	}
+	return exists
+}
+
+// Fungsi untuk memvalidasi apakah sebuah order ID sudah ada dalam tabel orders
+func isOrderExists(db *sql.DB, orderID string) bool {
+	var exists bool
+	row := db.QueryRow("SELECT EXISTS (SELECT 1 FROM orders WHERE order_id = $1)", orderID)
+	err := row.Scan(&exists)
+	if err != nil {
+		panic(err)
+	}
+	return exists
 }
